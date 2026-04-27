@@ -37,6 +37,9 @@ services:
       - API_SERVER_PORT=8642
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - TZ=${TZ:-America/Toronto}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - HERMES_INFERENCE_PROVIDER=openrouter
+      - HERMES_DEFAULT_MODEL=${HERMES_DEFAULT_MODEL}
     networks:
       - ai-internal
     # NO ports: — intentionally not mapped to host
@@ -60,12 +63,42 @@ services:
     depends_on:
       - hermes
     environment:
+      # --- Core connection to Hermes (the only backend) ---
       - OPENAI_API_BASE_URL=http://hermes-brain:8642/v1
       - OPENAI_API_KEY=${HERMES_API_SERVER_KEY}
       - WEBUI_SECRET_KEY=${OPENWEBUI_SECRET_KEY}
-      # First user to sign up becomes admin. Disable after setup if desired.
-      - ENABLE_SIGNUP=true
       - TZ=${TZ:-America/Toronto}
+
+      # --- CRITICAL: env vars always win over the database on every restart ---
+      # Without this, changes made in the UI override these env vars after first boot.
+      - ENABLE_PERSISTENT_CONFIG=False
+
+      # --- Auth ---
+      # Set to false after initial admin account is created.
+      - ENABLE_SIGNUP=true
+      - ENABLE_LOGIN_FORM=true
+
+      # --- Disable Ollama (we have no Ollama, only Hermes via OpenAI API) ---
+      - ENABLE_OLLAMA_API=false
+
+      # --- Disable Arena / Evaluation ---
+      - ENABLE_EVALUATION_ARENA_MODELS=false
+
+      # --- Disable direct user-level connections (users can't add their own backends) ---
+      - ENABLE_DIRECT_CONNECTIONS=false
+
+      # --- Disable RAG / Knowledge / Web Search (long-term memory lives in Hermes) ---
+      - ENABLE_WEB_SEARCH=false
+      - ENABLE_RAG_HYBRID_SEARCH=false
+      - ENABLE_RAG_LOCAL_WEB_FETCH=false
+
+      # --- Disable community / sharing features ---
+      - ENABLE_COMMUNITY_SHARING=false
+
+      # --- Disable noisy generation helpers (tags, autocomplete) ---
+      - ENABLE_TAGS_GENERATION=false
+      - ENABLE_AUTOCOMPLETE_GENERATION=false
+
     volumes:
       - ./open-webui-data:/app/backend/data
     networks:
