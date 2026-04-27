@@ -1,0 +1,8 @@
+# Secrets
+.env
+
+# Runtime data (lives on VPS, not in git)
+hermes-data/
+open-webui-data/
+dozzle-data/
+code-server/

@@ -1,0 +1,154 @@
+# =============================================================================
+# Hermes Cloud Brain — Docker Compose
+# =============================================================================
+# Centralized AI agent stack:
+#   - Hermes:      core brain (internal only, not exposed to public)
+#   - Open WebUI:  chat interface at hermes.sentimentalk.com
+#   - Dozzle:      log viewer at hermes-logs.sentimentalk.com
+#   - Code-Server: maintenance IDE at hermes-code.sentimentalk.com
+#
+# Prerequisites:
+#   - External `master-gateway` network (from caddy-docker-proxy)
+#   - Run bootstrap.sh once before first `docker compose up`
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f hermes-brain
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Hermes — The Brain
+  # ---------------------------------------------------------------------------
+  # Runs in gateway mode as a persistent OpenAI-compatible API server.
+  # NEVER exposed to the public internet. Only reachable via ai-internal.
+  # All state lives in ./hermes-data/ (SOUL.md, memories, skills, state.db).
+  # ---------------------------------------------------------------------------
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes-brain
+    restart: unless-stopped
+    command: gateway run
+    volumes:
+      - ./hermes-data:/opt/data
+    environment:
+      - API_SERVER_ENABLED=true
+      - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
+      - TZ=${TZ:-America/Toronto}
+    networks:
+      - ai-internal
+    # NO ports: — intentionally not mapped to host
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # Open WebUI — The Mouth
+  # ---------------------------------------------------------------------------
+  # ChatGPT-like interface. First registered user becomes admin.
+  # Connects to Hermes via Docker internal network.
+  # Publicly accessible at hermes.sentimentalk.com (WebUI handles its own auth).
+  # ---------------------------------------------------------------------------
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: hermes-webui
+    restart: unless-stopped
+    depends_on:
+      - hermes
+    environment:
+      - OPENAI_API_BASE_URL=http://hermes-brain:8642/v1
+      - OPENAI_API_KEY=${HERMES_API_SERVER_KEY}
+      - WEBUI_SECRET_KEY=${OPENWEBUI_SECRET_KEY}
+      # First user to sign up becomes admin. Disable after setup if desired.
+      - ENABLE_SIGNUP=true
+      - TZ=${TZ:-America/Toronto}
+    volumes:
+      - ./open-webui-data:/app/backend/data
+    networks:
+      - ai-internal
+      - master-gateway
+    labels:
+      caddy: hermes.sentimentalk.com
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # Dozzle — The Eyes (Real-time Log Viewer)
+  # ---------------------------------------------------------------------------
+  # View live container logs in the browser.
+  # Protected by Caddy basic_auth at the reverse proxy layer.
+  # Does NOT store logs — that's Docker json-file's job.
+  # ---------------------------------------------------------------------------
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: hermes-logs
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./dozzle-data:/data
+    environment:
+      - DOZZLE_HOSTNAME=hermes-vps
+      - TZ=${TZ:-America/Toronto}
+    networks:
+      - master-gateway
+    labels:
+      caddy: hermes-logs.sentimentalk.com
+      caddy.reverse_proxy: "{{upstreams 8080}}"
+      caddy.basicauth: "/* ${CADDY_ADMIN_USER} ${CADDY_ADMIN_HASH}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # Code-Server — The Surgery Table (Maintenance IDE)
+  # ---------------------------------------------------------------------------
+  # VS Code in the browser for editing compose, .env, SOUL.md, skills.
+  # hermes-data is mounted READ-ONLY to enforce state.db safety.
+  # Protected by both Code-Server password AND Caddy basic_auth.
+  # ---------------------------------------------------------------------------
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: hermes-code
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/Toronto}
+      - PASSWORD=${CODE_SERVER_PASSWORD}
+      - DEFAULT_WORKSPACE=/projects
+    volumes:
+      - ./code-server:/config
+      - ./hermes-data:/projects/hermes-data:ro    # READ-ONLY! See README.
+      - ./:/projects/compose                       # docker-compose + .env
+    networks:
+      - master-gateway
+    labels:
+      caddy: hermes-code.sentimentalk.com
+      caddy.reverse_proxy: "{{upstreams 8443}}"
+      caddy.basicauth: "/* ${CADDY_ADMIN_USER} ${CADDY_ADMIN_HASH}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  # Private bridge for Hermes ↔ Open WebUI (and future Telegram Bot)
+  ai-internal:
+    driver: bridge
+
+  # Existing caddy-docker-proxy network — services with Caddy labels join this
+  master-gateway:
+    external: true
+
