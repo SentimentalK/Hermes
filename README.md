@@ -18,7 +18,7 @@ flowchart TD
     
     CodeServer -.->|"bind-mounts (read-only)"| Hermes
     
-    Hermes -->|"API"| OpenRouter["OpenRouter BYOK<br/>anthropic/claude-sonnet-4.6"]
+    Hermes -->|"API"| OpenRouter["OpenRouter BYOK<br/>anthropic/claude-sonnet-4-6"]
 ```
 
 ## Quick Start
