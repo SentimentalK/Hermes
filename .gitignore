@@ -2,7 +2,9 @@
 .env
 
 # Runtime data (lives on VPS, not in git)
-hermes-data/
+hermes-data/*
+!hermes-data/
+!hermes-data/config.yaml
 open-webui-data/
 dozzle-data/
 code-server/

@@ -18,7 +18,7 @@ flowchart TD
     
     CodeServer -.->|"bind-mounts (read-only)"| Hermes
     
-    Hermes -->|"API"| OpenRouter["OpenRouter<br/>anthropic/claude-3.5-sonnet"]
+    Hermes -->|"API"| OpenRouter["OpenRouter BYOK<br/>${HERMES_DEFAULT_MODEL}"]
 ```
 
 ## Quick Start
@@ -32,26 +32,20 @@ flowchart TD
   - `hermes-logs.sentimentalk.com`
   - `hermes-code.sentimentalk.com`
 
-### 1. Clone & Bootstrap
+### 1. Clone
 
 ```bash
 git clone <this-repo> /data/hermes   # or wherever you want
 cd /data/hermes
-chmod +x bootstrap.sh
-./bootstrap.sh
 ```
 
-The bootstrap script will:
-- Create data directories
-- Copy `.env.example` → `.env` (edit it!)
-- Run the Hermes interactive setup wizard
-- Verify the `master-gateway` network exists
-
-### 2. Edit `.env`
+### 2. Create `.env`
 
 Fill in all values. Key secrets to generate:
 
 ```bash
+cp .env.example .env
+
 # Hermes API key (used by Open WebUI to connect)
 openssl rand -hex 32
 
@@ -61,6 +55,8 @@ openssl rand -hex 16
 # Caddy basic auth hash (for Dozzle & Code-Server)
 docker run --rm caddy caddy hash-password --plaintext 'your-admin-password'
 ```
+
+Hermes runtime settings live in `hermes-data/config.yaml` and are tracked in git. Secrets stay in `.env`; the default template uses OpenRouter with Anthropic BYOK routing. In OpenRouter, set the Anthropic BYOK integration to "Always use this key" so failed BYOK calls do not fall back to OpenRouter shared credits.
 
 ### 3. Start
 
@@ -94,11 +90,10 @@ docker compose up -d
 ├── docker-compose.yml
 ├── .env                    # secrets (git-ignored)
 ├── .env.example            # template
-├── bootstrap.sh            # first-run wizard
 ├── hermes-data/            # Hermes state (THE source of truth)
-│   ├── SOUL.md
-│   ├── config.yaml
-│   ├── .env                # Hermes-specific secrets
+│   ├── config.yaml          # tracked runtime config
+│   ├── SOUL.md              # generated/edited runtime identity
+│   ├── .env                 # generated Hermes-specific secrets, if any
 │   ├── memories/
 │   ├── skills/
 │   ├── sessions/
@@ -197,7 +192,8 @@ docker compose up -d
 docker exec hermes-brain hermes config list
 
 # Change Hermes model
-docker exec hermes-brain hermes config set model.default anthropic/claude-3.5-sonnet
+# Edit HERMES_DEFAULT_MODEL in .env, then recreate Hermes:
+docker compose up -d --force-recreate hermes
 ```
 
 ## Phase 3 — Future Expansion
@@ -244,6 +240,6 @@ services:
 |---------|-----|
 | Open WebUI can't find models | Check `HERMES_API_SERVER_KEY` matches in both services |
 | Caddy not routing to services | Verify containers are on `master-gateway`: `docker network inspect master-gateway` |
-| Hermes won't start | Check `docker compose logs hermes` — likely missing config. Re-run `bootstrap.sh` |
+| Hermes won't start | Check `docker compose logs hermes` and verify `.env` plus `hermes-data/config.yaml` |
 | state.db locked | Another process has the DB open. Stop Code-Server SQLite extensions. |
-| High OpenRouter costs | Reduce context window in Open WebUI Admin → Settings |
+| OpenRouter charges shared credits | Verify Anthropic BYOK is configured and set to "Always use this key"; `provider_routing.only` limits providers but OpenRouter key fallback is controlled in OpenRouter settings |

@@ -9,7 +9,7 @@
 #
 # Prerequisites:
 #   - External `master-gateway` network (from caddy-docker-proxy)
-#   - Run bootstrap.sh once before first `docker compose up`
+#   - Fill .env before first `docker compose up`
 #
 # Usage:
 #   docker compose up -d
@@ -38,7 +38,6 @@ services:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - TZ=${TZ:-America/Toronto}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - HERMES_INFERENCE_PROVIDER=openrouter
       - HERMES_DEFAULT_MODEL=${HERMES_DEFAULT_MODEL}
     networks:
       - ai-internal
