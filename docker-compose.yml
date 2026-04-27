@@ -38,7 +38,6 @@ services:
       - API_SERVER_KEY=${HERMES_API_SERVER_KEY}
       - TZ=${TZ:-America/Toronto}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - HERMES_DEFAULT_MODEL=${HERMES_DEFAULT_MODEL}
     networks:
       - ai-internal
     # NO ports: — intentionally not mapped to host

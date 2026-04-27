@@ -18,7 +18,7 @@ flowchart TD
     
     CodeServer -.->|"bind-mounts (read-only)"| Hermes
     
-    Hermes -->|"API"| OpenRouter["OpenRouter BYOK<br/>${HERMES_DEFAULT_MODEL}"]
+    Hermes -->|"API"| OpenRouter["OpenRouter BYOK<br/>anthropic/claude-sonnet-4.6"]
 ```
 
 ## Quick Start
@@ -192,7 +192,7 @@ docker compose up -d
 docker exec hermes-brain hermes config list
 
 # Change Hermes model
-# Edit HERMES_DEFAULT_MODEL in .env, then recreate Hermes:
+# Edit hermes-data/config.yaml, then recreate Hermes:
 docker compose up -d --force-recreate hermes
 ```
 
