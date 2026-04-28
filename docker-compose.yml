@@ -133,7 +133,8 @@ services:
     labels:
       caddy: hermes-logs.sentimentalk.com
       caddy.reverse_proxy: "{{upstreams 8080}}"
-      caddy.basicauth: "/* ${CADDY_ADMIN_USER} ${CADDY_ADMIN_HASH}"
+      caddy.basic_auth: "/*"
+      caddy.basic_auth.admin: "${CADDY_ADMIN_HASH}"
     logging:
       driver: json-file
       options:
@@ -166,7 +167,8 @@ services:
     labels:
       caddy: hermes-code.sentimentalk.com
       caddy.reverse_proxy: "{{upstreams 8443}}"
-      caddy.basicauth: "/* ${CADDY_ADMIN_USER} ${CADDY_ADMIN_HASH}"
+      caddy.basic_auth: "/*"
+      caddy.basic_auth.admin: "${CADDY_ADMIN_HASH}"
     logging:
       driver: json-file
       options:
